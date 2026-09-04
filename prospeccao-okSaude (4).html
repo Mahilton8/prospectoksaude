@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prospecção Telemedicina — Gestão &amp; Logística</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  :root{
+    --ink:#12232B;
+    --ink-soft:#4B5F66;
+    --paper:#F5F7F6;
+    --panel:#FFFFFF;
+    --line:#DCE3E1;
+    --teal:#0E4B4B;
+    --teal-deep:#0A3838;
+    --teal-soft:#E4EFEC;
+    --amber:#E0932A;
+    --amber-soft:#FBEBD3;
+    --red:#B94A3E;
+    --red-soft:#F6E3E0;
+    --green:#2F7D5C;
+    --green-soft:#E1F0E7;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(18,35,43,.06), 0 4px 14px rgba(18,35,43,.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+
+  /* ---------- Shell ---------- */
+  .shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh;}
+  @media (max-width:860px){ .shell{grid-template-columns:1fr;} .side{position:sticky;top:0;z-index:20;} }
+
+  .side{
+    background:var(--teal-deep);
+    color:#EAF3F1;
+    padding:22px 16px;
+    display:flex;flex-direction:column;gap:22px;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px;padding:0 6px;}
+  .brand .mark{font-size:20px;font-weight:700;letter-spacing:-.01em;}
+  .brand .sub{font-size:11.5px;color:#9FC6BE;line-height:1.4;}
+  .nav{display:flex;flex-direction:column;gap:2px;}
+  .nav button{
+    all:unset;cursor:pointer;
+    padding:10px 12px;border-radius:8px;
+    font-size:14px;font-weight:500;color:#CFE6E0;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+  }
+  .nav button:hover{background:rgba(255,255,255,.06);}
+  .nav button.active{background:#EAF3F1;color:var(--teal-deep);font-weight:700;}
+  .nav button .count{
+    font-size:11px;font-weight:700;background:rgba(255,255,255,.14);
+    padding:1px 7px;border-radius:20px;color:#EAF3F1;
+  }
+  .nav button.active .count{background:var(--teal-deep);color:#EAF3F1;}
+  .side-foot{margin-top:auto;font-size:11px;color:#7FA69E;padding:0 6px;line-height:1.5;}
+
+  .main{padding:26px 30px 60px;max-width:1400px;}
+  @media (max-width:860px){ .main{padding:18px;} }
+
+  .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
+  .page-head h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em;}
+  .page-head p{margin:0;color:var(--ink-soft);font-size:13.5px;max-width:60ch;}
+
+  .btn{
+    all:unset;cursor:pointer;
+    padding:9px 16px;border-radius:8px;font-size:13.5px;font-weight:600;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn-primary{background:var(--teal);color:#fff;}
+  .btn-primary:hover{background:var(--teal-deep);}
+  .btn-ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line);}
+  .btn-ghost:hover{border-color:var(--teal);}
+  .btn-sm{padding:6px 11px;font-size:12.5px;}
+  .btn-danger{background:var(--red-soft);color:var(--red);}
+  .btn-danger:hover{background:#f0cfc9;}
+
+  /* ---------- Cards / KPIs ---------- */
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+  @media (max-width:760px){ .kpi-row{grid-template-columns:repeat(2,1fr);} }
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);}
+  .kpi .val{font-size:26px;font-weight:700;letter-spacing:-.02em;}
+  .kpi .lbl{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .kpi.warn .val{color:var(--amber);}
+  .kpi.bad .val{color:var(--red);}
+  .kpi.good .val{color:var(--green);}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);}
+  .panel + .panel{margin-top:16px;}
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);}
+  .toolbar input[type=text], .toolbar select{
+    border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;background:#fff;color:var(--ink);
+  }
+  .toolbar .grow{flex:1;min-width:160px;}
+  .chip-filters{display:flex;gap:6px;flex-wrap:wrap;}
+  .chip{
+    border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12.5px;cursor:pointer;background:#fff;color:var(--ink-soft);
+  }
+  .chip.active{background:var(--teal);border-color:var(--teal);color:#fff;}
+
+  /* ---------- Table ---------- */
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;font-size:11.5px;color:var(--ink-soft);
+    padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;font-weight:600;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #EEF1F0;vertical-align:top;}
+  tbody tr:hover{background:#FAFCFB;}
+  tbody tr:last-child td{border-bottom:none;}
+  .razao{font-weight:600;font-size:13.5px;}
+  .fantasia{color:var(--ink-soft);font-size:12px;}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;}
+  .badge.novo{background:var(--teal-soft);color:var(--teal-deep);}
+  .badge.andamento{background:var(--amber-soft);color:#8A5A16;}
+  .badge.pendente{background:var(--red-soft);color:var(--red);}
+  .badge.convertido{background:var(--green-soft);color:var(--green);}
+  .badge.sem-interesse{background:#EDEDED;color:#6B6B6B;}
+  .mono{font-variant-numeric:tabular-nums;color:var(--ink-soft);font-size:12.5px;}
+  .row-actions{display:flex;gap:6px;}
+  .icon-btn{
+    all:unset;cursor:pointer;width:28px;height:28px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;
+    color:var(--ink-soft);border:1px solid transparent;
+  }
+  .icon-btn:hover{background:var(--teal-soft);color:var(--teal-deep);}
+  .empty{padding:40px 20px;text-align:center;color:var(--ink-soft);font-size:13.5px;}
+
+  /* ---------- Modal ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(15,25,29,.45);display:none;align-items:flex-start;justify-content:center;padding:5vh 16px;overflow:auto;z-index:100;}
+  .overlay.open{display:flex;}
+  .modal{background:#fff;border-radius:14px;max-width:640px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+  .modal-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;}
+  .modal-head h2{font-size:16px;margin:0;}
+  .modal-body{padding:20px 22px;max-height:70vh;overflow:auto;}
+  .modal-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field.full{grid-column:1/-1;}
+  .field label{font-size:12px;font-weight:600;color:var(--ink-soft);}
+  .field input,.field select,.field textarea{
+    border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13.5px;font-family:inherit;color:var(--ink);background:#fff;
+  }
+  .field textarea{resize:vertical;min-height:60px;}
+  .close-x{all:unset;cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--ink-soft);}
+  .close-x:hover{background:var(--paper);}
+
+  .hist-list{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+  .hist-item{border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:var(--paper);}
+  .hist-item .hd{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-soft);margin-bottom:4px;}
+  .hist-item .note{font-size:13px;}
+  .hist-item .next{margin-top:6px;font-size:12px;color:var(--amber);font-weight:600;}
+
+  .section-title{font-size:12.5px;font-weight:700;text-transform:none;color:var(--teal-deep);margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--line);}
+  .section-title:first-child{border-top:none;margin-top:0;padding-top:0;}
+
+  /* ---------- Pendências list ---------- */
+  .pend-item{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid #EEF1F0;gap:14px;}
+  .pend-item:last-child{border-bottom:none;}
+  .pend-left{display:flex;flex-direction:column;gap:2px;}
+  .pend-left .name{font-weight:600;font-size:13.5px;}
+  .pend-left .meta{font-size:12px;color:var(--ink-soft);}
+  .pend-date{font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap;}
+  .pend-date.today{background:var(--amber-soft);color:#8A5A16;}
+  .pend-date.overdue{background:var(--red-soft);color:var(--red);}
+  .pend-date.future{background:var(--teal-soft);color:var(--teal-deep);}
+
+  /* ---------- Logistics ---------- */
+  .logi-grid{display:grid;grid-template-columns:340px 1fr;gap:16px;}
+  @media (max-width:960px){ .logi-grid{grid-template-columns:1fr;} }
+  #map{width:100%;height:560px;border-radius:var(--radius);border:1px solid var(--line);background:#E8ECEB;}
+  .select-list{max-height:560px;overflow:auto;}
+  .sel-item{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid #EEF1F0;}
+  .sel-item:last-child{border-bottom:none;}
+  .sel-item input[type=checkbox]{margin-top:3px;width:16px;height:16px;accent-color:var(--teal);}
+  .sel-item .t{flex:1;}
+  .sel-item .t .n{font-size:13px;font-weight:600;}
+  .sel-item .t .c{font-size:11.5px;color:var(--ink-soft);}
+  .route-summary{padding:14px 16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);display:none;}
+  .route-summary.show{display:block;}
+  .route-summary b{color:var(--ink);}
+  .route-steps{margin-top:8px;display:flex;flex-direction:column;gap:4px;font-size:12px;}
+  .route-steps .step{display:flex;gap:8px;}
+  .route-steps .step .n{width:18px;height:18px;border-radius:50%;background:var(--teal);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+
+  .key-box{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .key-box input{flex:1;min-width:220px;border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:12.5px;font-family:inherit;}
+  .key-note{font-size:11.5px;color:var(--ink-soft);padding:0 16px 12px;}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--teal-deep);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:200;opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  .resp-check{display:flex;gap:16px;flex-wrap:wrap;padding:4px 2px;}
+  .resp-check label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;cursor:pointer;padding:6px 12px;border-radius:20px;border:1.5px solid var(--line);background:#fff;transition:border-color .15s;}
+  .resp-check input{width:15px;height:15px;accent-color:var(--teal);}
+  .resp-check label.checked-mahilton{border-color:#0E4B4B;background:#E4EFEC;}
+  .resp-check label.checked-wellington{border-color:#B9791E;background:#FBEEDA;}
+  .tag-resp{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px 2px 6px;border-radius:20px;color:#fff;letter-spacing:.01em;}
+  .tag-resp .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.85);}
+  .tag-resp.mahilton{background:#0E4B4B;}
+  .tag-resp.wellington{background:#B9791E;}
+  .tag-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;}
+
+  .estado-tag{font-size:10.5px;font-weight:700;color:#fff;background:var(--teal);border-radius:5px;padding:1px 6px;}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <div class="mark">Prospecção OK Saúde</div>
+      <div class="sub">Gestão de contatos &amp; logística de campo</div>
+    </div>
+    <nav class="nav">
+      <button data-view="dash" class="active">Painel <span class="count" id="cnt-total">0</span></button>
+      <button data-view="pend">Pendências <span class="count" id="cnt-pend">0</span></button>
+      <button data-view="lista">Clientes <span class="count" id="cnt-lista">0</span></button>
+      <button data-view="agenda">Agenda <span class="count" id="cnt-agenda">0</span></button>
+      <button data-view="logi">Logística</button>
+    </nav>
+    <div class="side-foot">Dados salvos localmente no navegador (localStorage). Exporte periodicamente em Clientes → Exportar.</div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ===== DASHBOARD ===== -->
+    <section id="view-dash">
+      <div class="page-head">
+        <div>
+          <h1>Painel de prospecção</h1>
+          <p>Visão geral dos contatos de funerárias/planos para oferta de telemedicina (OK Saúde) e suas pendências de acionamento.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openNewLead()">+ Novo contato</button>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi"><div class="val" id="kpi-total">0</div><div class="lbl">Contatos cadastrados</div></div>
+        <div class="kpi bad"><div class="val" id="kpi-atrasado">0</div><div class="lbl">Retornos atrasados</div></div>
+        <div class="kpi warn"><div class="val" id="kpi-hoje">0</div><div class="lbl">Retornos para hoje</div></div>
+        <div class="kpi good"><div class="val" id="kpi-convertido">0</div><div class="lbl">Convertidos</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="toolbar"><strong style="font-size:13.5px;">Próximas pendências</strong></div>
+        <div id="dash-pend-list"></div>
+      </div>
+
+      <div class="panel">
+        <div class="toolbar"><strong style="font-size:13.5px;">Distribuição por Estado</strong></div>
+        <div id="dash-estado-list" style="padding:14px 16px;display:flex;gap:10px;flex-wrap:wrap;"></div>
+      </div>
+    </section>
+
+    <!-- ===== PENDÊNCIAS ===== -->
+    <section id="view-pend" style="display:none;">
+      <div class="page-head">
+        <div>
+          <h1>Pendências de retorno</h1>
+          <p>Lembretes de "voltar a falar" gerados a partir dos acionamentos registrados em cada contato.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="toolbar">
+          <div class="chip-filters" id="pend-filters">
+            <span class="chip active" data-f="all">Todas</span>
+            <span class="chip" data-f="overdue">Atrasadas</span>
+            <span class="chip" data-f="today">Hoje</span>
+            <span class="chip" data-f="future">Futuras</span>
+          </div>
+        </div>
+        <div id="pend-full-list"></div>
+      </div>
+    </section>
+
+    <!-- ===== LISTA DE CLIENTES ===== -->
+    <section id="view-lista" style="display:none;">
+      <div class="page-head">
+        <div>
+          <h1>Clientes / Prospects</h1>
+          <p>Cadastro completo, filtros por Estado e status, e histórico de acionamentos por contato.</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="exportJSON()">Exportar</button>
+          <button class="btn btn-primary" onclick="openNewLead()">+ Novo contato</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="toolbar">
+          <input type="text" class="grow" id="search-input" placeholder="Buscar por razão social, cidade, contato ou CNPJ...">
+          <select id="filter-status">
+            <option value="">Todos os status</option>
+            <option value="novo">Novo</option>
+            <option value="andamento">Em andamento</option>
+            <option value="pendente">Pendente</option>
+            <option value="convertido">Convertido</option>
+            <option value="sem-interesse">Sem interesse</option>
+          </select>
+          <select id="filter-estado">
+            <option value="">Todos os estados</option>
+          </select>
+        </div>
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Razão social</th><th>Cidade/UF</th><th>CNPJ</th><th>Contato</th><th>Telefone</th><th>Status</th><th>Próx. retorno</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="lista-tbody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="lista-empty" style="display:none;">Nenhum contato encontrado com os filtros atuais.</div>
+      </div>
+    </section>
+
+    <!-- ===== LOGÍSTICA ===== -->
+    <section id="view-logi" style="display:none;">
+      <div class="page-head">
+        <div>
+          <h1>Logística inteligente de visitas</h1>
+          <p>Selecione os clientes por Estado/cidade e trace a rota otimizada para priorizar deslocamentos e acionamentos presenciais.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="key-note" style="padding:14px 16px;">
+          Mapa, geocodificação de endereços e cálculo de rota usam serviços abertos (OpenStreetMap / OSRM) — <strong>sem chave de API e sem custo</strong>. Como são serviços públicos gratuitos, a geocodificação de nomes de cidade pode falhar ocasionalmente ou levar alguns segundos; se algum cliente não aparecer no mapa, tente refinar o nome da cidade no cadastro (ex.: "Cidade, UF").
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:14px;">
+        <div class="toolbar" style="flex-wrap:wrap;">
+          <div class="field" style="min-width:220px;">
+            <label>Cidade de origem (ponto de partida)</label>
+            <input type="text" id="logi-origem" placeholder="Ex.: Barra do Garças, MT">
+          </div>
+          <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:18px;">
+            <input type="checkbox" id="logi-retorno"> Retornar à origem no fim da rota
+          </label>
+          <button class="btn btn-ghost btn-sm" style="margin-top:18px;" onclick="usarLocalizacaoAtual()">Usar minha localização atual</button>
+        </div>
+        <div class="key-note" style="padding:0 16px 12px;">A origem é o ponto fixo de partida. A rota otimiza a ordem de visita aos clientes selecionados a partir dela — priorizando o menor deslocamento total, não a ordem em que foram marcados.</div>
+      </div>
+
+      <div class="panel" style="margin-top:14px;">
+        <div class="toolbar" style="flex-wrap:wrap;">
+          <div>
+            <strong style="font-size:13.5px;">Sugestão de roteirização</strong>
+            <div class="key-note" style="padding:4px 0 0;">Marca automaticamente os clientes prioritários (retorno atrasado primeiro, depois hoje, depois novos contatos) dentro do Estado filtrado, respeitando o limite de paradas.</div>
+          </div>
+        </div>
+        <div class="toolbar" style="border-top:1px solid var(--line);">
+          <div class="field" style="min-width:160px;">
+            <label>Máx. de paradas sugeridas</label>
+            <input type="number" id="sugestao-max" value="8" min="1" max="20">
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-top:18px;" onclick="sugerirRoteiro()">💡 Sugerir rota</button>
+          <span id="sugestao-resultado" style="margin-top:18px;font-size:12.5px;color:var(--ink-soft);"></span>
+        </div>
+      </div>
+
+      <div class="logi-grid" style="margin-top:14px;">
+        <div class="panel">
+          <div class="toolbar">
+            <select id="logi-estado-filter" class="grow">
+              <option value="">Filtrar por Estado</option>
+            </select>
+          </div>
+          <div class="toolbar" style="border-top:1px solid var(--line);">
+            <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;"><input type="checkbox" id="logi-select-all"> Selecionar todos visíveis</label>
+            <span style="margin-left:auto;font-size:12px;color:var(--ink-soft);" id="logi-sel-count">0 selecionados</span>
+            <button class="btn btn-primary btn-sm" id="btn-sugerir-selecionados" onclick="tracarRota()" disabled>Sugerir rota com selecionados</button>
+          </div>
+          <div class="select-list" id="logi-select-list"></div>
+          <div class="toolbar" style="border-top:1px solid var(--line);">
+            <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="tracarRota()">Traçar rota otimizada</button>
+          </div>
+          <div class="route-summary" id="route-summary"></div>
+        </div>
+        <div>
+          <div id="map"></div>
+          <div class="panel" style="margin-top:12px;padding:12px 16px;font-size:12px;color:var(--ink-soft);">
+            <strong style="color:var(--ink);">Como funciona a priorização:</strong> a rota usa um algoritmo de otimização de paradas (via OSRM), reordenando os pontos selecionados para o menor deslocamento total a partir da sua origem. Combine isso com os filtros de pendência (Painel/Pendências) para visitar primeiro quem está com retorno atrasado.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== AGENDA ===== -->
+    <section id="view-agenda" style="display:none;">
+      <div class="page-head">
+        <div>
+          <h1>Agenda de reuniões</h1>
+          <p>Marque reuniões vinculadas a clientes, registre o briefing e bloqueie horários indisponíveis.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openNewEvento()">+ Novo evento</button>
+      </div>
+
+      <div class="panel">
+        <div class="toolbar">
+          <button class="icon-btn" onclick="mudarMes(-1)" style="border:1px solid var(--line);">‹</button>
+          <strong id="agenda-mes-label" style="font-size:14px;min-width:170px;text-align:center;"></strong>
+          <button class="icon-btn" onclick="mudarMes(1)" style="border:1px solid var(--line);">›</button>
+          <button class="btn btn-ghost btn-sm" onclick="irParaHoje()">Hoje</button>
+          <span style="margin-left:auto;display:flex;gap:14px;font-size:11.5px;color:var(--ink-soft);align-items:center;">
+            <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--teal);margin-right:4px;"></span>Reunião</span>
+            <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:#8A8F91;margin-right:4px;"></span>Bloqueio</span>
+          </span>
+        </div>
+        <div id="agenda-grid" style="padding:14px 16px;"></div>
+      </div>
+
+      <div class="panel">
+        <div class="toolbar"><strong style="font-size:13.5px;">Próximos eventos (14 dias)</strong></div>
+        <div id="agenda-upcoming"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===== MODAL: Novo/Editar Evento de Agenda ===== -->
+<div class="overlay" id="evento-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="evento-modal-title">Novo evento</h2>
+      <button class="close-x" onclick="closeEventoModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-grid">
+        <div class="field full">
+          <label>Tipo de evento</label>
+          <select id="ev-tipo" onchange="onEventoTipoChange()">
+            <option value="reuniao">Reunião com cliente</option>
+            <option value="bloqueio">Bloqueio de agenda (indisponível)</option>
+          </select>
+        </div>
+
+        <div class="field full" id="ev-cliente-field">
+          <label>Cliente</label>
+          <select id="ev-cliente" onchange="updateEventoHint()"></select>
+        </div>
+
+        <div class="field full" id="ev-resp-prospect-field">
+          <label>Responsável pelo Prospect</label>
+          <div class="resp-check" id="ev-resp-prospect">
+            <label data-person="mahilton"><input type="checkbox" value="mahilton"> Mahilton</label>
+            <label data-person="wellington"><input type="checkbox" value="wellington"> Wellington</label>
+          </div>
+        </div>
+
+        <div class="field full" id="ev-resp-reuniao-field">
+          <label id="ev-resp-reuniao-label">Responsável pela reunião</label>
+          <div class="resp-check" id="ev-resp-reuniao">
+            <label data-person="mahilton"><input type="checkbox" value="mahilton"> Mahilton</label>
+            <label data-person="wellington"><input type="checkbox" value="wellington"> Wellington</label>
+          </div>
+        </div>
+
+        <div class="field"><label>Data</label><input id="ev-data" type="date" onchange="updateEventoHint()"></div>
+        <div class="field"><label>Hora início</label><input id="ev-hora-ini" type="time" onchange="updateEventoHint()"></div>
+        <div class="field"><label>Hora fim</label><input id="ev-hora-fim" type="time" onchange="updateEventoHint()"></div>
+        <div class="field" id="ev-local-field">
+          <label>Formato</label>
+          <select id="ev-formato">
+            <option value="presencial">Presencial</option>
+            <option value="remoto">Remoto (online)</option>
+            <option value="telefone">Telefone</option>
+          </select>
+        </div>
+
+        <div class="field full" id="ev-local-detalhe-field">
+          <label>Endereço / link da reunião</label>
+          <input id="ev-local-detalhe" type="text" placeholder="Ex.: endereço do cliente, ou link do Meet/Zoom">
+        </div>
+
+        <div class="field full" id="ev-briefing-field">
+          <label>Briefing / pauta da reunião</label>
+          <textarea id="ev-briefing" placeholder="O que será discutido, objetivos, materiais a levar..."></textarea>
+        </div>
+
+        <div class="field full" id="ev-motivo-field" style="display:none;">
+          <label>Motivo do bloqueio</label>
+          <input id="ev-motivo" type="text" placeholder="Ex.: viagem, compromisso pessoal, feriado local...">
+        </div>
+
+        <div class="field full" id="ev-vincular-field">
+          <label style="display:flex;gap:7px;align-items:center;font-weight:500;">
+            <input type="checkbox" id="ev-vincular-retorno" style="width:15px;height:15px;">
+            Também definir esta data como "próximo retorno" deste cliente
+          </label>
+        </div>
+
+        <div class="field full" id="ev-hint" style="display:none;padding:10px 12px;border-radius:8px;font-size:12.5px;"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="btn-delete-evento" onclick="deleteEvento()" style="display:none;">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeEventoModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEvento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Novo/Editar Lead ===== -->
+<div class="overlay" id="lead-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="lead-modal-title">Novo contato</h2>
+      <button class="close-x" onclick="closeLeadModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-title">Dados do cliente</div>
+      <div class="field-grid">
+        <div class="field full"><label>Razão social *</label><input id="f-razao" type="text"></div>
+        <div class="field"><label>Nome fantasia</label><input id="f-fantasia" type="text"></div>
+        <div class="field"><label>CNPJ/CPF</label><input id="f-cnpj" type="text"></div>
+        <div class="field"><label>Cidade *</label><input id="f-cidade" type="text"></div>
+        <div class="field"><label>Estado (UF) *</label><input id="f-estado" type="text" maxlength="2" style="text-transform:uppercase;"></div>
+        <div class="field"><label>Telefone</label><input id="f-telefone" type="text"></div>
+        <div class="field"><label>E-mail</label><input id="f-email" type="text"></div>
+        <div class="field"><label>Pessoa de contato</label><input id="f-contato" type="text"></div>
+        <div class="field"><label>Status</label>
+          <select id="f-status">
+            <option value="novo">Novo</option>
+            <option value="andamento">Em andamento</option>
+            <option value="pendente">Pendente</option>
+            <option value="convertido">Convertido</option>
+            <option value="sem-interesse">Sem interesse</option>
+          </select>
+        </div>
+        <div class="field full"><label>Observações gerais</label><textarea id="f-obs"></textarea></div>
+      </div>
+
+      <div class="section-title">Registrar novo acionamento</div>
+      <div class="field-grid">
+        <div class="field full"><label>Nota do contato (o que foi conversado)</label><textarea id="f-hist-nota" placeholder="Ex.: Liguei, falei com o gerente, demonstrou interesse no plano..."></textarea></div>
+        <div class="field"><label>Lembrete — voltar a falar em</label><input id="f-hist-next" type="date"></div>
+        <div class="field" style="align-self:flex-end;"><button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="addHistoricoInline()">+ Adicionar acionamento</button></div>
+      </div>
+
+      <div class="section-title">Histórico de acionamentos</div>
+      <div class="hist-list" id="hist-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="btn-delete-lead" onclick="deleteLead()" style="display:none;">Excluir</button>
+      <button class="btn btn-ghost" onclick="closeLeadModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveLead()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+/* =========================================================
+   DADOS — extraídos dos relatórios C2 Sistemas (PA/CE/PI/PE/PB)
+   Extração de PDF pode conter pequenos desalinhamentos de coluna:
+   revise/edite os registros na tela "Clientes" antes de usar em campo.
+   ========================================================= */
+const SEED = [
+  // PA
+  {razao:"FUNERÁRIA GOD LIFE LTDA", fantasia:"FUNERÁRIA GOD LIFE", cnpj:"22.912.825/0001-15", cidade:"Belém", estado:"PA", telefone:"91 3086-8285", email:"glsorriso-pa@live.com", contato:"Francisco Lopes Pereira"},
+  {razao:"YONÁ MALCHER RODRIGUES 40398892000145 (MEI)", fantasia:"SOCIEDADE PÓSTUMA EXCLUSIVA PAX", cnpj:"40.398.892/0001-45", cidade:"São Caetano de Odivelas", estado:"PA", telefone:"91 98020-6655", email:"yonamalcher13@gmail.com", contato:"Yoná Malcher Rodrigues"},
+  {razao:"SANTAPAX LTDA", fantasia:"SANTAPAX", cnpj:"61.578.848/0001-97", cidade:"Bragança", estado:"PA", telefone:"27992394136", email:"", contato:"Adriana Maria de Souza"},
+  {razao:"N.O TEIXEIRA ASSISTÊNCIA PÓSTUMA - ME", fantasia:"LUZ ETERNA BELÉM", cnpj:"10.899.178/0001-70", cidade:"Belém", estado:"PA", telefone:"91 3355-7896 / 98352-5888", email:"luzeternabelempa1@hotmail.com", contato:"Nadia Oliveira Teixeira"},
+  {razao:"A COSTA & J ALVES LTDA", fantasia:"NOVA VIDA PLANO ASSISTENCIAL", cnpj:"24.412.705/0001-84", cidade:"Belém", estado:"PA", telefone:"91 3085-3845 / 91 9383-3679 / 9838-9651", email:"sociedadenovavida@gmail.com", contato:"Hilderto da Silva Costa"},
+  {razao:"CELSO FILHO DA SILVA SERVIÇO - ME", fantasia:"FUNERÁRIA PREVENIR", cnpj:"24.960.743/0001-71", cidade:"Altamira", estado:"PA", telefone:"93 3515-4151 / 93 9222-3822", email:"took65@hotmail.com", contato:"Daniel Mota da Silva"},
+
+  // CE
+  {razao:"FUNERÁRIA E ÓTICA DA PAZ DURADOURA LTDA", fantasia:"FUNERÁRIA E ÓTICA DA PAZ DURADOURA", cnpj:"57.248.344/0001-31", cidade:"Sobral", estado:"CE", telefone:"88 3611-1481", email:"vilma.ribeiro@hotmail.com", contato:"Maria Vilma Teodózio Ribeiro"},
+  {razao:"FUNERÁRIA NOVA LUZ", fantasia:"FUBERÁRIA NOVA LUZ", cnpj:"61.774.021/0001-59", cidade:"Pacatuba", estado:"CE", telefone:"", email:"fnovaluz@gmail.com", contato:"", status:"pendente", obs:"Status no C2 Sistemas: Ativo/Inadimplente."},
+  {razao:"UNIPLAN FUNERÁRIA E FLORICULTURA LTDA", fantasia:"FUNERÁRIA PAZ SUPREMA", cnpj:"61.774.021/0001-59", cidade:"Ocara", estado:"CE", telefone:"84 98679-6637", email:"funerariapazsuprema.ocara@outlook.com", contato:"Antônio Roberto Lima de Almeida"},
+  {razao:"LIGIANE CARVALHO CUSTÓDIO CARLOS", fantasia:"CATARINA FUNERAIS", cnpj:"15.745.661/0001-13", cidade:"Catarina", estado:"CE", telefone:"88 98846-7726", email:"catarinafunerais@gmail.com", contato:"Ligiane Carvalho Custódio Carlos"},
+  {razao:"R A N DE OLIVEIRA", fantasia:"ROBERTO PROTEÇÃO VEICULAR", cnpj:"21.471.508/0001-48", cidade:"Morada Nova", estado:"CE", telefone:"88 9670-2224 / 9276-0421 / 9657-0909", email:"robertoprotecaoveicular@gmail.com", contato:"Robson Andrade Nantua de Oliveira"},
+  {razao:"ÓTICAS METROPOLITANO", fantasia:"ÓTICAS METROPOLITANO", cnpj:"30.869.446/0001-18", cidade:"Pacajus", estado:"CE", telefone:"85 3395-1060", email:"cartaometropolitano@gmail.com", contato:"Luis Alberto Carneiro da Silva"},
+  {razao:"FUNERÁRIA CAMINHO AO CÉU", fantasia:"FUNERÁRIA CAMINHO AO CÉU", cnpj:"41.637.547/0001-80", cidade:"Brejo Santo", estado:"CE", telefone:"88 9624-8664", email:"funerariacaminhoaoceu@yahoo.com", contato:"Maria Ilza Moreira Silva"},
+  {razao:"FUNERÁRIA ALIANÇA SÃO FRANCISCO", fantasia:"FUNERÁRIA ALIANÇA SÃO FRANCISCO", cnpj:"18.903.000/0001-67", cidade:"Varjota", estado:"CE", telefone:"88 9938-0421", email:"thailany.sn@hotmail.com", contato:"Thailane da Silva Narciso"},
+
+  // PI
+  {razao:"CAMPI COMÉRCIO E ASSISTÊNCIA MORTUÁRIA DO PIAUÍ", fantasia:"FUNERÁRIA VIDA ETERNA", cnpj:"17.461.056/0001-46", cidade:"Paulistana", estado:"PI", telefone:"89 99408-3968", email:"campifunerariavidaeterna@hotmail.com", contato:"Roberto Bitito Sapucaia"},
+  {razao:"NAIR RODRIGUES SACHT - ME", fantasia:"PLANO SANTA INEZ", cnpj:"02.211.323/0001-50", cidade:"São João do Piauí", estado:"PI", telefone:"89 99418-5906", email:"novosantainez@gmail.com", contato:"Nair Rodrigues Sacht"},
+
+  // PE
+  {razao:"CICERO PAULO LIMA DOS SANTOS", fantasia:"FUNERÁRIA FLOR DO CAMPO", cnpj:"01.652.170/0001-13", cidade:"São José da Coroa Grande", estado:"PE", telefone:"81 99133-2272 / 81 9473-4499 / 81 98301-8324", email:"orgffc-uniaofuneral@hotmail.com", contato:"Cicero Paulo Lima dos Santos"},
+  {razao:"CASA REAL RECIFE PLANOS FUNERÁRIOS LTDA", fantasia:"CASA REAL", cnpj:"37.562.843/0001-91", cidade:"Recife", estado:"PE", telefone:"81 9732-3410 / 81 3223-2374", email:"diretoriacasareal@gmail.com", contato:"Andreza de Lima Viana"},
+  {razao:"F JERONIMO LTDA", fantasia:"OSACRE", cnpj:"48.958.088/0002-66", cidade:"Garanhuns", estado:"PE", telefone:"", email:"", contato:""},
+  {razao:"UNIPLAN FUNERÁRIA E FLORICULTURA LTDA", fantasia:"FUNERÁRIA E FLORICULTURA", cnpj:"30.816.534/0001-08", cidade:"Sertânia", estado:"PE", telefone:"84 98979-6637", email:"uniplanpernambuco@gmail.com", contato:"Reginaldo Gueiros de Barros"},
+  {razao:"PLANO DE ASSISTÊNCIA FAMILIAR COLINAS LTDA", fantasia:"PAFAC", cnpj:"45.771.523/0001-70", cidade:"Garanhuns", estado:"PE", telefone:"", email:"pafacgaranhuns@gmail.com", contato:"Márcia Meire Bezerra Costa Conceição"},
+  {razao:"FUNERÁRIA SANTO ANTÔNIO - BUÍQUE", fantasia:"FUNERÁRIA SANTO ANTÔNIO", cnpj:"10.786.036/0001-04", cidade:"Buíque", estado:"PE", telefone:"82 3623-1904 / 82 9935-4505 / 82 9965-3581", email:"santoantonio.servicofunerario@gmail.com", contato:"Cleonice Adervanio"},
+  {razao:"RAMON DE MELO - ME", fantasia:"FUNERÁRIA CARNEIRO", cnpj:"05.208.050/0001-82", cidade:"Cupira", estado:"PE", telefone:"99462-1340 / 99429-4267", email:"funeraria_carneiro@hotmail.com", contato:"Ramon de Melo"},
+  {razao:"TOP PLANO DE ASSISTÊNCIA FUNERÁRIA LTDA - ME", fantasia:"TOP PLANO", cnpj:"15.732.114/0001-01", cidade:"Jaboatão dos Guararapes", estado:"PE", telefone:"81 9 8612-1586 / 90060935/9 / 94278719", email:"valeriomoura@yahoo.com.br", contato:"Valério Silva de Moura"},
+  {razao:"ADRIANA GÓIS DE OLIVEIRA NASCIMENTO SERVIÇOS", fantasia:"PAZ DIVINA", cnpj:"12.187.072/0001-79", cidade:"Ribeirópolis", estado:"PE", telefone:"79 9958-0499 / 79 3449-1701", email:"adrianapazdivina@hotmail.com", contato:"Alex/Adriana"},
+  {razao:"AVANI CLARINDO DA SILVA", fantasia:"PLANO IDEAL", cnpj:"50.760.882/0001-61", cidade:"Primavera", estado:"PE", telefone:"81 9953-2827 / 99642-2771", email:"planoideal2023@gmail.com", contato:"Avani Clarindo da Silva"},
+  {razao:"J B CAVALCANTI FUNERÁRIA", fantasia:"CASA OMEGA", cnpj:"04.156.730/0001-37", cidade:"Recife", estado:"PE", telefone:"", email:"fcasaomega@hotmail.com", contato:"Josué Batista Cavalcanti"},
+  {razao:"IVETE MONTEIRO PLANO FUNERAL", fantasia:"ETERNO PLANO DE ASSISTÊNCIA FUNERAL", cnpj:"04.744.334/0001-20", cidade:"Jaboatão dos Guararapes", estado:"PE", telefone:"81 3377-9621 / 81 9502-0387 / 81 9486-9327", email:"nortearcontabilidade@gmail.com", contato:"Deborah Freire Soares"},
+
+  // PB
+  {razao:"JA GOMES E SERVIÇOS LTDA", fantasia:"MEMORIAL SÃO JOSÉ - PLANO DE ASSISTÊNCIA FAMILIAR", cnpj:"63.357.852/0001-50", cidade:"Alagoa Grande", estado:"PB", telefone:"83 99380-8260 / 83 99385-1613", email:"memorialpafsaojose@gmail.com", contato:"Jarciel Anderson da Silva Gomes"},
+  {razao:"S.J. SERVIÇOS FUNERÁRIOS LTDA", fantasia:"FUNERÁRIA RENASCER DE CAMPINA GRANDE", cnpj:"02.912.128/0001-57", cidade:"Campina Grande", estado:"PB", telefone:"83 3342-1100 / 83 8829-2636 / 83 9999-6765", email:"funeraria_renascer1@hotmail.com", contato:"Nuara Freitas Soares"},
+  {razao:"ESSENCIAL PREV SERVIÇOS COMÉRCIO E SERVIÇOS PÓSTUMOS", fantasia:"ESSENCIAL PREV / CAMPO DAS PALMEIRAS", cnpj:"36.480.301/0001-07", cidade:"Santa Rita", estado:"PB", telefone:"83 98884-4080", email:"valdisio.lacerda@hotmail.com", contato:"Valdísio Vasconcelos de Lacerda Filho"},
+  {razao:"JOSÉ EUDO SIMÃO DA SILVA", fantasia:"PAFI SERVIÇOS FUNERÁRIOS", cnpj:"25.042.889/0001-09", cidade:"Conceição", estado:"PB", telefone:"83 9804-4666 / 9379-3323 / 9684-8593", email:"paficonceicao@hotmail.com", contato:"Aldenir Simão Martins"},
+  {razao:"DIVINAPAZ SERVIÇOS FUNERÁRIOS E FLORICULTURA", fantasia:"FUNERÁRIA DIVINA PAZ", cnpj:"41.833.691/0001-91", cidade:"Catolé do Rocha", estado:"PB", telefone:"83999338516", email:"planodivinapaz@gmail.com", contato:"Cleiton Barbosa de Oliveira"},
+];
+
+const CITY_COORDS = {}; // cache de geocodificação: "cidade|uf" -> {lat,lng}
+
+/* =========================================================
+   ESTADO / PERSISTÊNCIA
+   ========================================================= */
+const LS_KEY = "okSaudeProspects_v1";
+const LS_KEY_MAPS = "okSaudeProspects_gmapsKey";
+
+function loadLeads(){
+  const raw = localStorage.getItem(LS_KEY);
+  if(raw){
+    try{ return JSON.parse(raw); }catch(e){ /* fallthrough */ }
+  }
+  const seeded = SEED.map(s => ({
+    id: crypto.randomUUID(),
+    razao: s.razao, fantasia: s.fantasia||"", cnpj: s.cnpj||"",
+    cidade: s.cidade, estado: s.estado, telefone: s.telefone||"", email: s.email||"",
+    contato: s.contato||"", status: s.status||"novo", obs: s.obs||"",
+    historico: []
+  }));
+  localStorage.setItem(LS_KEY, JSON.stringify(seeded));
+  return seeded;
+}
+function saveLeads(){ localStorage.setItem(LS_KEY, JSON.stringify(leads)); }
+
+let leads = loadLeads();
+let currentLeadId = null; // lead sendo editado no modal
+let tempHistorico = [];
+
+/* =========================================================
+   NAVEGAÇÃO
+   ========================================================= */
+const views = ["dash","pend","lista","logi","agenda"];
+document.querySelectorAll(".nav button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    const v = btn.dataset.view;
+    views.forEach(x=> document.getElementById("view-"+x).style.display = (x===v?"block":"none"));
+    if(v==="logi") initLogiView();
+    if(v==="agenda") renderAgenda();
+    renderAll();
+  });
+});
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+/* =========================================================
+   HELPERS DE DATA / STATUS
+   ========================================================= */
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+function nextPending(lead){
+  // retorna o próximo lembrete (menor data futura ou vencida) do histórico
+  const withNext = (lead.historico||[]).filter(h=>h.next);
+  if(!withNext.length) return null;
+  withNext.sort((a,b)=> a.next.localeCompare(b.next));
+  return withNext[0].next;
+}
+function pendClass(dateISO){
+  if(!dateISO) return "";
+  if(dateISO < todayISO()) return "overdue";
+  if(dateISO === todayISO()) return "today";
+  return "future";
+}
+function fmtDate(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+const STATUS_LABEL = {novo:"Novo", andamento:"Em andamento", pendente:"Pendente", convertido:"Convertido", "sem-interesse":"Sem interesse"};
+
+/* =========================================================
+   RENDER — DASHBOARD
+   ========================================================= */
+function renderDash(){
+  document.getElementById("kpi-total").textContent = leads.length;
+  const overdue = leads.filter(l=> pendClass(nextPending(l))==="overdue").length;
+  const today = leads.filter(l=> pendClass(nextPending(l))==="today").length;
+  const conv = leads.filter(l=> l.status==="convertido").length;
+  document.getElementById("kpi-atrasado").textContent = overdue;
+  document.getElementById("kpi-hoje").textContent = today;
+  document.getElementById("kpi-convertido").textContent = conv;
+
+  const withPend = leads.filter(l=> nextPending(l)).sort((a,b)=> nextPending(a).localeCompare(nextPending(b))).slice(0,8);
+  const box = document.getElementById("dash-pend-list");
+  box.innerHTML = "";
+  if(!withPend.length){ box.innerHTML = `<div class="empty">Nenhuma pendência registrada ainda.</div>`; }
+  withPend.forEach(l=>{
+    const d = nextPending(l);
+    box.appendChild(pendItemEl(l,d));
+  });
+
+  const estBox = document.getElementById("dash-estado-list");
+  const byEstado = {};
+  leads.forEach(l=> byEstado[l.estado] = (byEstado[l.estado]||0)+1);
+  estBox.innerHTML = "";
+  Object.keys(byEstado).sort().forEach(uf=>{
+    const el = document.createElement("div");
+    el.className = "chip";
+    el.style.cursor = "default";
+    el.innerHTML = `<span class="estado-tag">${uf}</span> &nbsp;${byEstado[uf]} contato(s)`;
+    estBox.appendChild(el);
+  });
+}
+
+function pendItemEl(l,d){
+  const el = document.createElement("div");
+  el.className = "pend-item";
+  el.innerHTML = `
+    <div class="pend-left">
+      <div class="name">${escapeHtml(l.razao)}</div>
+      <div class="meta">${escapeHtml(l.cidade)}/${l.estado} · ${STATUS_LABEL[l.status]||l.status}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="pend-date ${pendClass(d)}">${pendClass(d)==="overdue"?"Atrasado — ":""}${fmtDate(d)}</span>
+      <button class="btn btn-ghost btn-sm" data-open="${l.id}">Abrir</button>
+    </div>`;
+  el.querySelector("[data-open]").addEventListener("click", ()=> openEditLead(l.id));
+  return el;
+}
+
+/* =========================================================
+   RENDER — PENDÊNCIAS (view completa)
+   ========================================================= */
+let pendFilter = "all";
+document.getElementById("pend-filters").addEventListener("click", e=>{
+  const chip = e.target.closest(".chip");
+  if(!chip) return;
+  document.querySelectorAll("#pend-filters .chip").forEach(c=>c.classList.remove("active"));
+  chip.classList.add("active");
+  pendFilter = chip.dataset.f;
+  renderPendFull();
+});
+function renderPendFull(){
+  let withPend = leads.filter(l=> nextPending(l));
+  if(pendFilter!=="all"){
+    withPend = withPend.filter(l=> pendClass(nextPending(l))===pendFilter);
+  }
+  withPend.sort((a,b)=> nextPending(a).localeCompare(nextPending(b)));
+  const box = document.getElementById("pend-full-list");
+  box.innerHTML = "";
+  if(!withPend.length){ box.innerHTML = `<div class="empty">Nenhuma pendência nesse filtro.</div>`; return; }
+  withPend.forEach(l=> box.appendChild(pendItemEl(l, nextPending(l))));
+}
+
+/* =========================================================
+   RENDER — LISTA DE CLIENTES
+   ========================================================= */
+function populateEstadoFilters(){
+  const estados = [...new Set(leads.map(l=>l.estado))].sort();
+  const sel = document.getElementById("filter-estado");
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">Todos os estados</option>` + estados.map(e=>`<option value="${e}">${e}</option>`).join("");
+  sel.value = cur;
+
+  const sel2 = document.getElementById("logi-estado-filter");
+  const cur2 = sel2.value;
+  sel2.innerHTML = `<option value="">Filtrar por Estado</option>` + estados.map(e=>`<option value="${e}">${e}</option>`).join("");
+  sel2.value = cur2;
+}
+
+function filteredLeads(){
+  const q = (document.getElementById("search-input").value||"").toLowerCase().trim();
+  const st = document.getElementById("filter-status").value;
+  const uf = document.getElementById("filter-estado").value;
+  return leads.filter(l=>{
+    if(st && l.status!==st) return false;
+    if(uf && l.estado!==uf) return false;
+    if(q){
+      const hay = `${l.razao} ${l.fantasia} ${l.cidade} ${l.contato} ${l.cnpj}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderLista(){
+  populateEstadoFilters();
+  const rows = filteredLeads();
+  const tbody = document.getElementById("lista-tbody");
+  tbody.innerHTML = "";
+  document.getElementById("lista-empty").style.display = rows.length? "none":"block";
+  rows.forEach(l=>{
+    const tr = document.createElement("tr");
+    const np = nextPending(l);
+    tr.innerHTML = `
+      <td><div class="razao">${escapeHtml(l.razao)}</div><div class="fantasia">${escapeHtml(l.fantasia||"")}</div></td>
+      <td class="mono">${escapeHtml(l.cidade)}<br><span class="estado-tag">${l.estado}</span></td>
+      <td class="mono">${escapeHtml(l.cnpj||"—")}</td>
+      <td>${escapeHtml(l.contato||"—")}</td>
+      <td class="mono">${escapeHtml(l.telefone||"—")}</td>
+      <td><span class="badge ${l.status}">${STATUS_LABEL[l.status]||l.status}</span></td>
+      <td>${np? `<span class="pend-date ${pendClass(np)}">${fmtDate(np)}</span>` : `<span class="mono">—</span>`}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" title="Editar" data-edit="${l.id}">✎</button>
+      </div></td>`;
+    tr.querySelector("[data-edit]").addEventListener("click", ()=> openEditLead(l.id));
+    tbody.appendChild(tr);
+  });
+  document.getElementById("cnt-lista").textContent = leads.length;
+  document.getElementById("cnt-total").textContent = leads.length;
+  document.getElementById("cnt-pend").textContent = leads.filter(l=>nextPending(l)).length;
+}
+["search-input","filter-status","filter-estado"].forEach(id=>{
+  document.getElementById(id).addEventListener("input", renderLista);
+  document.getElementById(id).addEventListener("change", renderLista);
+});
+
+/* =========================================================
+   MODAL — CRUD LEAD
+   ========================================================= */
+function openNewLead(){
+  currentLeadId = null;
+  tempHistorico = [];
+  document.getElementById("lead-modal-title").textContent = "Novo contato";
+  ["f-razao","f-fantasia","f-cnpj","f-cidade","f-estado","f-telefone","f-email","f-contato","f-obs","f-hist-nota","f-hist-next"].forEach(id=> document.getElementById(id).value="");
+  document.getElementById("f-status").value = "novo";
+  document.getElementById("btn-delete-lead").style.display = "none";
+  renderHistList();
+  document.getElementById("lead-overlay").classList.add("open");
+}
+function openEditLead(id){
+  const l = leads.find(x=>x.id===id);
+  if(!l) return;
+  currentLeadId = id;
+  tempHistorico = JSON.parse(JSON.stringify(l.historico||[]));
+  document.getElementById("lead-modal-title").textContent = "Editar contato";
+  document.getElementById("f-razao").value = l.razao||"";
+  document.getElementById("f-fantasia").value = l.fantasia||"";
+  document.getElementById("f-cnpj").value = l.cnpj||"";
+  document.getElementById("f-cidade").value = l.cidade||"";
+  document.getElementById("f-estado").value = l.estado||"";
+  document.getElementById("f-telefone").value = l.telefone||"";
+  document.getElementById("f-email").value = l.email||"";
+  document.getElementById("f-contato").value = l.contato||"";
+  document.getElementById("f-obs").value = l.obs||"";
+  document.getElementById("f-status").value = l.status||"novo";
+  document.getElementById("f-hist-nota").value = "";
+  document.getElementById("f-hist-next").value = "";
+  document.getElementById("btn-delete-lead").style.display = "inline-flex";
+  renderHistList();
+  document.getElementById("lead-overlay").classList.add("open");
+}
+function closeLeadModal(){ document.getElementById("lead-overlay").classList.remove("open"); }
+
+function addHistoricoInline(){
+  const nota = document.getElementById("f-hist-nota").value.trim();
+  const next = document.getElementById("f-hist-next").value;
+  if(!nota && !next){ toast("Escreva uma nota ou defina uma data de retorno."); return; }
+  tempHistorico.push({data: todayISO(), nota, next});
+  document.getElementById("f-hist-nota").value = "";
+  document.getElementById("f-hist-next").value = "";
+  renderHistList();
+}
+function renderHistList(){
+  const box = document.getElementById("hist-list");
+  box.innerHTML = "";
+  if(!tempHistorico.length){ box.innerHTML = `<div class="empty" style="padding:16px;">Nenhum acionamento registrado.</div>`; return; }
+  const sorted = [...tempHistorico].sort((a,b)=> b.data.localeCompare(a.data));
+  sorted.forEach((h)=>{
+    const el = document.createElement("div");
+    el.className = "hist-item";
+    el.innerHTML = `
+      <div class="hd"><span>${fmtDate(h.data)}</span></div>
+      <div class="note">${escapeHtml(h.nota||"(sem nota)")}</div>
+      ${h.next? `<div class="next">Voltar a falar em ${fmtDate(h.next)}</div>`:""}`;
+    box.appendChild(el);
+  });
+}
+
+function saveLead(){
+  const razao = document.getElementById("f-razao").value.trim();
+  const cidade = document.getElementById("f-cidade").value.trim();
+  const estado = document.getElementById("f-estado").value.trim().toUpperCase();
+  if(!razao || !cidade || !estado){ toast("Preencha razão social, cidade e estado."); return; }
+
+  const data = {
+    razao, cidade, estado,
+    fantasia: document.getElementById("f-fantasia").value.trim(),
+    cnpj: document.getElementById("f-cnpj").value.trim(),
+    telefone: document.getElementById("f-telefone").value.trim(),
+    email: document.getElementById("f-email").value.trim(),
+    contato: document.getElementById("f-contato").value.trim(),
+    status: document.getElementById("f-status").value,
+    obs: document.getElementById("f-obs").value.trim(),
+    historico: tempHistorico
+  };
+
+  // se houver texto pendente no campo de novo acionamento sem ter clicado em "+", inclui também
+  const notaPendente = document.getElementById("f-hist-nota").value.trim();
+  const nextPendente = document.getElementById("f-hist-next").value;
+  if(notaPendente || nextPendente){
+    data.historico.push({data: todayISO(), nota: notaPendente, next: nextPendente});
+  }
+
+  if(currentLeadId){
+    const idx = leads.findIndex(x=>x.id===currentLeadId);
+    leads[idx] = {...leads[idx], ...data};
+  }else{
+    leads.push({id: crypto.randomUUID(), ...data});
+  }
+  saveLeads();
+  closeLeadModal();
+  renderAll();
+  toast("Contato salvo.");
+}
+function deleteLead(){
+  if(!currentLeadId) return;
+  if(!confirm("Excluir este contato definitivamente?")) return;
+  leads = leads.filter(x=>x.id!==currentLeadId);
+  saveLeads();
+  closeLeadModal();
+  renderAll();
+  toast("Contato excluído.");
+}
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(leads,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "prospects_okSaude_"+todayISO()+".json";
+  a.click();
+}
+
+function escapeHtml(s){
+  return String(s??"").replace(/[&<>"']/g, c=> ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* =========================================================
+   LOGÍSTICA — MAPA E ROTA (OpenStreetMap + Nominatim + OSRM, sem chave)
+   ========================================================= */
+let gmap = null;
+let markers = {};
+let routeLayer = null;
+let selectedIds = new Set();
+let suggestedIds = new Set();
+
+function initLogiView(){
+  populateEstadoFilters();
+  renderLogiSelectList();
+  if(!gmap) initMap();
+}
+document.getElementById("logi-estado-filter").addEventListener("change", renderLogiSelectList);
+document.getElementById("logi-select-all").addEventListener("change", (e)=>{
+  const visible = getLogiVisibleLeads();
+  if(e.target.checked){ visible.forEach(l=> selectedIds.add(l.id)); }
+  else{ visible.forEach(l=> selectedIds.delete(l.id)); }
+  renderLogiSelectList();
+});
+
+function getLogiVisibleLeads(){
+  const uf = document.getElementById("logi-estado-filter").value;
+  return leads.filter(l=> !uf || l.estado===uf);
+}
+function renderLogiSelectList(){
+  const box = document.getElementById("logi-select-list");
+  box.innerHTML = "";
+  const visible = getLogiVisibleLeads();
+  visible.forEach(l=>{
+    const np = nextPending(l);
+    const el = document.createElement("div");
+    el.className = "sel-item";
+    const sugerido = suggestedIds.has(l.id) ? ` <span class="badge novo" style="font-size:10px;padding:2px 7px;">Sugerido</span>` : "";
+    el.innerHTML = `
+      <input type="checkbox" ${selectedIds.has(l.id)?"checked":""} data-id="${l.id}">
+      <div class="t">
+        <div class="n">${escapeHtml(l.razao)}${sugerido}</div>
+        <div class="c">${escapeHtml(l.cidade)}/${l.estado} ${np?`· <span style="color:${pendClass(np)==='overdue'?'#B94A3E':'#8A5A16'}">retorno ${fmtDate(np)}</span>`:""}</div>
+      </div>`;
+    el.querySelector("input").addEventListener("change", (e)=>{
+      if(e.target.checked) selectedIds.add(l.id); else selectedIds.delete(l.id);
+      document.getElementById("logi-sel-count").textContent = selectedIds.size+" selecionados";
+      document.getElementById("btn-sugerir-selecionados").disabled = selectedIds.size===0;
+    });
+    box.appendChild(el);
+  });
+  document.getElementById("logi-sel-count").textContent = selectedIds.size+" selecionados";
+  document.getElementById("btn-sugerir-selecionados").disabled = selectedIds.size===0;
+}
+
+function initMap(){
+  gmap = L.map('map').setView([-7.5, -38.5], 6); // centro aproximado do Nordeste
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(gmap);
+  toast("Mapa carregado.");
+}
+
+// Nominatim (OpenStreetMap) — geocodificação gratuita, sem chave
+async function geocodeAddress(texto){
+  try{
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q=${encodeURIComponent(texto)}`;
+    const resp = await fetch(url);
+    if(!resp.ok){ console.warn("Nominatim respondeu status", resp.status); return null; }
+    const data = await resp.json();
+    if(data && data[0]){ return {lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon)}; }
+    console.warn("Nominatim não encontrou resultado para:", texto);
+    return null;
+  }catch(e){ console.warn("Erro geocodeAddress:", e); return null; }
+}
+function geocodeLead(l){
+  const key = `${l.cidade}|${l.estado}`;
+  if(CITY_COORDS[key]) return Promise.resolve(CITY_COORDS[key]);
+  return geocodeAddress(`${l.cidade}, ${l.estado}, Brasil`).then(pos=>{
+    if(pos) CITY_COORDS[key] = pos;
+    return pos;
+  });
+}
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+let origemPos = null, origemLabel = "";
+
+function usarLocalizacaoAtual(){
+  if(!navigator.geolocation){ toast("Geolocalização não suportada neste navegador."); return; }
+  toast("Obtendo sua localização...");
+  navigator.geolocation.getCurrentPosition(pos=>{
+    origemPos = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+    origemLabel = "Minha localização atual";
+    document.getElementById("logi-origem").value = origemLabel;
+    toast("Localização obtida.");
+  }, err=>{
+    toast("Não foi possível obter sua localização: "+err.message);
+  });
+}
+
+function sugerirRoteiro(){
+  const uf = document.getElementById("logi-estado-filter").value;
+  const maxParadas = Math.max(1, Math.min(20, parseInt(document.getElementById("sugestao-max").value) || 8));
+
+  const pool = leads.filter(l=>{
+    if(uf && l.estado!==uf) return false;
+    if(l.status==="convertido" || l.status==="sem-interesse") return false;
+    return true;
+  });
+
+  function priorityKey(l){
+    const np = nextPending(l);
+    const cls = np ? pendClass(np) : null;
+    if(cls==="overdue") return [0, np];
+    if(cls==="today")   return [1, np];
+    if(l.status==="novo")      return [2, ""];
+    if(l.status==="andamento") return [3, ""];
+    if(cls==="future") return [4, np];
+    return [5, ""];
+  }
+
+  const ranked = pool
+    .map(l=> ({lead:l, key: priorityKey(l)}))
+    .sort((a,b)=> a.key[0]-b.key[0] || String(a.key[1]).localeCompare(String(b.key[1])));
+
+  const chosen = ranked.slice(0, maxParadas);
+
+  selectedIds = new Set(chosen.map(c=> c.lead.id));
+  suggestedIds = new Set(chosen.map(c=> c.lead.id));
+  renderLogiSelectList();
+
+  const counts = {overdue:0, today:0, novo:0, outros:0};
+  chosen.forEach(c=>{
+    const k = c.key[0];
+    if(k===0) counts.overdue++;
+    else if(k===1) counts.today++;
+    else if(k===2) counts.novo++;
+    else counts.outros++;
+  });
+  const partes = [];
+  if(counts.overdue) partes.push(`${counts.overdue} atrasado(s)`);
+  if(counts.today) partes.push(`${counts.today} de hoje`);
+  if(counts.novo) partes.push(`${counts.novo} novo(s)`);
+  if(counts.outros) partes.push(`${counts.outros} outro(s)`);
+
+  document.getElementById("sugestao-resultado").textContent = chosen.length
+    ? `Sugeridos ${chosen.length} clientes${uf? " em "+uf:""}: ${partes.join(", ")}. Agora informe a origem e clique em "Traçar rota otimizada".`
+    : "Nenhum cliente elegível encontrado com esses filtros.";
+
+  toast(chosen.length? "Roteiro sugerido — revise a seleção e trace a rota." : "Nenhum cliente elegível para sugerir.");
+}
+
+async function tracarRota(){
+  if(!gmap){ toast("O mapa ainda está carregando, aguarde um instante."); return; }
+  const chosen = leads.filter(l=> selectedIds.has(l.id));
+  if(chosen.length < 1){ toast("Selecione ao menos 1 cliente para traçar a rota."); return; }
+  if(chosen.length > 20){ toast("Selecione no máximo 20 clientes por rota (limite do serviço público de rotas)."); return; }
+
+  const origemTexto = document.getElementById("logi-origem").value.trim();
+  if(!origemTexto){ toast("Informe a cidade de origem (ponto de partida)."); return; }
+  const retorno = document.getElementById("logi-retorno").checked;
+
+  toast("Geocodificando endereços...");
+
+  if(origemTexto !== origemLabel || !origemPos){
+    origemPos = await geocodeAddress(origemTexto);
+    origemLabel = origemTexto;
+  }
+  if(!origemPos){ toast("Não foi possível localizar a cidade de origem informada."); return; }
+
+  // limpa marcadores e rota antigos
+  Object.values(markers).forEach(m=> gmap.removeLayer(m));
+  markers = {};
+  if(routeLayer){ gmap.removeLayer(routeLayer); routeLayer = null; }
+
+  const origIcon = L.divIcon({className:"", html:`<div style="width:16px;height:16px;border-radius:50%;background:#E0932A;border:2px solid #fff;box-shadow:0 0 0 1px #E0932A;"></div>`, iconSize:[16,16], iconAnchor:[8,8]});
+  markers["__origem__"] = L.marker([origemPos.lat, origemPos.lng], {icon: origIcon}).addTo(gmap).bindPopup("Origem: "+origemTexto);
+
+  const points = [];
+  for(const l of chosen){
+    const pos = await geocodeLead(l);
+    await sleep(250); // respeita o limite de uso do Nominatim (serviço público gratuito)
+    if(pos){
+      points.push({lead:l, pos});
+      const icon = L.divIcon({className:"", html:`<div style="width:14px;height:14px;border-radius:50%;background:#B94A3E;border:2px solid #fff;"></div>`, iconSize:[14,14], iconAnchor:[7,7]});
+      markers[l.id] = L.marker([pos.lat, pos.lng], {icon}).addTo(gmap).bindPopup(l.razao);
+    }
+  }
+  if(!points.length){ toast("Não foi possível geocodificar os clientes selecionados."); return; }
+
+  toast("Calculando distâncias e a melhor rota...");
+
+  // OSRM table service: distância/tempo diretos da origem até cada cliente selecionado
+  const distFromOrigin = {}; // index em "points" -> {km, min}
+  try{
+    const tableCoords = [origemPos, ...points.map(p=>p.pos)].map(p=>`${p.lng},${p.lat}`).join(";");
+    const destIdx = points.map((_,i)=> i+1).join(";");
+    const tableUrl = `https://router.project-osrm.org/table/v1/driving/${tableCoords}?sources=0&destinations=${destIdx}&annotations=distance,duration`;
+    const tResp = await fetch(tableUrl);
+    const tData = await tResp.json();
+    if(tData.code === "Ok" && tData.distances && tData.distances[0]){
+      tData.distances[0].forEach((meters, i)=>{
+        distFromOrigin[i] = {
+          km: meters!=null ? (meters/1000) : null,
+          min: tData.durations[0][i]!=null ? Math.round(tData.durations[0][i]/60) : null
+        };
+      });
+    }
+  }catch(e){ console.warn("Erro ao calcular distâncias diretas da origem:", e); }
+
+  // OSRM trip service: otimiza a ordem das paradas a partir de um ponto de origem fixo
+  const coordList = [origemPos, ...points.map(p=>p.pos)];
+  const coordStr = coordList.map(p=> `${p.lng},${p.lat}`).join(";");
+  const params = retorno
+    ? `source=first&roundtrip=true&geometries=geojson&overview=full`
+    : `source=first&destination=any&roundtrip=false&geometries=geojson&overview=full`;
+  const url = `https://router.project-osrm.org/trip/v1/driving/${coordStr}?${params}`;
+
+  try{
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if(data.code !== "Ok" || !data.trips || !data.trips[0]){
+      console.warn("OSRM retornou:", data);
+      toast("Não foi possível calcular a rota" + (data.message? (": "+data.message) : " (serviço público indisponível). Tente novamente.") );
+      return;
+    }
+    const trip = data.trips[0];
+    console.log("OSRM trip:", trip);
+    if(routeLayer){ gmap.removeLayer(routeLayer); routeLayer = null; }
+    if(trip.geometry){
+      routeLayer = L.geoJSON(trip.geometry, {style:{color:"#0E4B4B", weight:5, opacity:0.9}});
+      routeLayer.addTo(gmap);
+      routeLayer.bringToFront();
+      setTimeout(()=>{
+        gmap.invalidateSize();
+        try{ gmap.fitBounds(routeLayer.getBounds(), {padding:[30,30]}); }
+        catch(e){ console.warn("Não foi possível ajustar o zoom à rota:", e); }
+      }, 150);
+    }else{
+      console.warn("Resposta do OSRM não trouxe geometria da rota:", trip);
+    }
+
+    // ordem otimizada: waypoints[0] é a origem (índice 0 no coordList); os demais mapeiam para "points"
+    const order = data.waypoints
+      .map((w,i)=> ({inputIndex:i, tripPos: w.waypoint_index}))
+      .filter(w=> w.inputIndex > 0) // exclui a origem
+      .sort((a,b)=> a.tripPos - b.tripPos)
+      .map(w=> w.inputIndex - 1); // reindexa para o array "points"
+
+    renderRouteSummary(trip, points, origemTexto, order, retorno, distFromOrigin);
+  }catch(e){
+    console.warn("Erro ao consultar OSRM:", e);
+    toast("Erro ao consultar o serviço de rotas. Verifique sua conexão e tente novamente.");
+  }
+}
+
+function renderRouteSummary(trip, points, origemTexto, order, retorno, distFromOrigin){
+  const km = (trip.distance/1000).toFixed(0);
+  const totalSeconds = trip.duration;
+  const h = Math.floor(totalSeconds/3600), m = Math.round((totalSeconds%3600)/60);
+
+  const box = document.getElementById("route-summary");
+  box.classList.add("show");
+  box.innerHTML = `
+    <div><b>Distância total do roteiro (ordem otimizada):</b> ${km} km &nbsp;·&nbsp; <b>Tempo estimado:</b> ${h}h${m>0?` ${m}min`:""}</div>
+    <div class="route-steps">
+      <div class="step"><span class="n" style="background:#E0932A;">O</span><span><b>${escapeHtml(origemTexto)}</b> (origem)</span></div>
+      ${order.map((idx,i)=>{
+        const info = distFromOrigin[idx];
+        const distTxt = info && info.km!=null ? ` — ${info.km.toFixed(0)} km / ${info.min}min direto da origem` : "";
+        return `<div class="step"><span class="n">${i+1}</span><span>${escapeHtml(points[idx].lead.razao)}<span style="color:#B94A3E;font-weight:600;">${distTxt}</span></span></div>`;
+      }).join("")}
+      ${retorno? `<div class="step"><span class="n" style="background:#E0932A;">O</span><span><b>${escapeHtml(origemTexto)}</b> (retorno)</span></div>`:""}
+    </div>`;
+
+  renderLegBreakdown(trip, points, origemTexto, order, retorno);
+}
+
+// Detalhamento trecho a trecho (A→B, B→C...), independente do mapa desenhar a linha
+function renderLegBreakdown(trip, points, origemTexto, order, retorno){
+  let box = document.getElementById("route-legs");
+  if(!box){
+    box = document.createElement("div");
+    box.id = "route-legs";
+    box.className = "panel";
+    box.style.marginTop = "12px";
+    document.querySelector("#view-logi .logi-grid").parentElement.appendChild(box);
+  }
+
+  // nomes das paradas na ordem visitada, incluindo origem no início (e no fim, se houver retorno)
+  const stopNames = [origemTexto, ...order.map(idx=> points[idx].lead.razao)];
+  if(retorno) stopNames.push(origemTexto+" (retorno)");
+
+  const legs = trip.legs || [];
+  let rows = "";
+  for(let i=0; i<legs.length; i++){
+    const de = stopNames[i], para = stopNames[i+1];
+    const km = (legs[i].distance/1000).toFixed(1);
+    const min = Math.round(legs[i].duration/60);
+    rows += `<tr>
+      <td style="padding:9px 14px;border-bottom:1px solid #EEF1F0;font-size:13px;">${escapeHtml(de)}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #EEF1F0;font-size:13px;">→ ${escapeHtml(para)}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #EEF1F0;font-size:13px;text-align:right;font-weight:600;">${km} km</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #EEF1F0;font-size:12.5px;text-align:right;color:var(--ink-soft);">${min} min</td>
+    </tr>`;
+  }
+  const totalKm = (trip.distance/1000).toFixed(1);
+  const totalMin = Math.round(trip.duration/60);
+
+  box.innerHTML = `
+    <div class="toolbar"><strong style="font-size:13.5px;">Trajeto detalhado (trecho a trecho)</strong></div>
+    <div style="overflow:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr>
+          <th style="text-align:left;padding:8px 14px;font-size:11.5px;color:var(--ink-soft);">De</th>
+          <th style="text-align:left;padding:8px 14px;font-size:11.5px;color:var(--ink-soft);">Para</th>
+          <th style="text-align:right;padding:8px 14px;font-size:11.5px;color:var(--ink-soft);">Distância</th>
+          <th style="text-align:right;padding:8px 14px;font-size:11.5px;color:var(--ink-soft);">Tempo</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr>
+          <td colspan="2" style="padding:10px 14px;font-size:13px;font-weight:700;">Total do trajeto</td>
+          <td style="padding:10px 14px;text-align:right;font-weight:700;">${totalKm} km</td>
+          <td style="padding:10px 14px;text-align:right;font-weight:700;color:var(--ink-soft);font-size:12.5px;">${totalMin} min</td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+}
+
+/* =========================================================
+   AGENDA DE REUNIÕES
+   ========================================================= */
+const LS_KEY_AGENDA = "okSaudeProspects_agenda_v1";
+function loadAgenda(){
+  const raw = localStorage.getItem(LS_KEY_AGENDA);
+  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+  return [];
+}
+function saveAgenda(){ localStorage.setItem(LS_KEY_AGENDA, JSON.stringify(agenda)); }
+let agenda = loadAgenda();
+let currentMonth = new Date(currentDateBase().getFullYear(), currentDateBase().getMonth(), 1);
+let editingEventoId = null;
+
+function currentDateBase(){ return new Date(); }
+
+function mudarMes(delta){
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+delta, 1);
+  renderAgenda();
+}
+function irParaHoje(){
+  const d = new Date();
+  currentMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+  renderAgenda();
+}
+
+const MESES_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DIAS_PT = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+
+function eventosNoDia(dataISO){
+  return agenda.filter(e=> e.data===dataISO).sort((a,b)=> (a.horaInicio||"").localeCompare(b.horaInicio||""));
+}
+
+function renderAgenda(){
+  document.getElementById("agenda-mes-label").textContent = `${MESES_PT[currentMonth.getMonth()]} de ${currentMonth.getFullYear()}`;
+
+  const year = currentMonth.getFullYear(), month = currentMonth.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startWeekday = firstDay.getDay(); // 0=domingo
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const todayStr = todayISO();
+
+  let html = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;">`;
+  DIAS_PT.forEach(d=> html += `<div style="font-size:11px;font-weight:700;color:var(--ink-soft);text-align:center;padding:4px 0;">${d}</div>`);
+
+  for(let i=0;i<startWeekday;i++){ html += `<div></div>`; }
+
+  for(let day=1; day<=daysInMonth; day++){
+    const dISO = `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const evs = eventosNoDia(dISO);
+    const isToday = dISO===todayStr;
+    html += `<div class="agenda-cell" data-date="${dISO}" style="min-height:74px;border:1px solid var(--line);border-radius:8px;padding:6px;cursor:pointer;background:${isToday?"var(--teal-soft)":"#fff"};">
+      <div style="font-size:11.5px;font-weight:${isToday?"800":"600"};color:${isToday?"var(--teal-deep)":"var(--ink)"};">${day}</div>
+      <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px;">
+        ${evs.slice(0,2).map(e=> `<div style="font-size:10px;padding:2px 5px;border-radius:4px;background:${e.tipo==='bloqueio'?'#8A8F91':'var(--teal)'};color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:4px;">${(e.respReuniao||[]).map(p=>`<span style="width:6px;height:6px;border-radius:50%;background:${p==='mahilton'?'#8FD9C4':'#F5C876'};flex-shrink:0;"></span>`).join("")}${e.horaInicio?e.horaInicio+" ":""}${escapeHtml(e.titulo)}</div>`).join("")}
+        ${evs.length>2? `<div style="font-size:9.5px;color:var(--ink-soft);">+${evs.length-2} mais</div>` : ""}
+      </div>
+    </div>`;
+  }
+  html += `</div>`;
+  const grid = document.getElementById("agenda-grid");
+  grid.innerHTML = html;
+  grid.querySelectorAll(".agenda-cell").forEach(cell=>{
+    cell.addEventListener("click", ()=> openDayView(cell.dataset.date));
+  });
+
+  renderAgendaUpcoming();
+  document.getElementById("cnt-agenda").textContent = agenda.filter(e=> e.data>=todayStr).length;
+}
+
+function openDayView(dataISO){
+  const evs = eventosNoDia(dataISO);
+  if(!evs.length){ openNewEvento(dataISO); return; }
+  const linhas = evs.map(e=> `${e.horaInicio||"--:--"} · ${e.tipo==="bloqueio"?"Bloqueio":"Reunião"} · ${e.titulo}`).join("\n");
+  const acao = confirm(`Eventos em ${fmtDate(dataISO)}:\n\n${linhas}\n\nClique OK para adicionar um novo evento nesse dia, ou Cancelar para fechar.`);
+  if(acao) openNewEvento(dataISO);
+}
+
+function renderAgendaUpcoming(){
+  const todayStr = todayISO();
+  const limite = new Date(); limite.setDate(limite.getDate()+14);
+  const limiteStr = limite.toISOString().slice(0,10);
+  const proximos = agenda.filter(e=> e.data>=todayStr && e.data<=limiteStr).sort((a,b)=> (a.data+a.horaInicio).localeCompare(b.data+b.horaInicio));
+  const box = document.getElementById("agenda-upcoming");
+  box.innerHTML = "";
+  if(!proximos.length){ box.innerHTML = `<div class="empty">Nenhum evento nos próximos 14 dias.</div>`; return; }
+  proximos.forEach(e=>{
+    const el = document.createElement("div");
+    el.className = "pend-item";
+    const lead = e.leadId? leads.find(l=>l.id===e.leadId) : null;
+    el.innerHTML = `
+      <div class="pend-left">
+        <div class="name">${e.tipo==="bloqueio"?"🔒 ":"📅 "}${escapeHtml(e.titulo)}</div>
+        <div class="meta">${fmtDate(e.data)} ${e.horaInicio?"· "+e.horaInicio+(e.horaFim?"–"+e.horaFim:""):""} ${lead? "· "+escapeHtml(lead.cidade)+"/"+lead.estado : ""}</div>
+        ${tagsRespHtml([...new Set([...(e.respProspect||[]), ...(e.respReuniao||[])])])}
+      </div>
+      <button class="btn btn-ghost btn-sm" data-open="${e.id}">Abrir</button>`;
+    el.querySelector("[data-open]").addEventListener("click", ()=> openEditEvento(e.id));
+    box.appendChild(el);
+  });
+}
+
+function setupRespCheckboxes(){
+  document.querySelectorAll(".resp-check input[type=checkbox]").forEach(cb=>{
+    cb.addEventListener("change", ()=>{
+      const label = cb.closest("label");
+      label.classList.toggle("checked-"+cb.value, cb.checked);
+      updateEventoHint();
+    });
+  });
+}
+function getRespValues(containerId){
+  return [...document.querySelectorAll("#"+containerId+" input:checked")].map(cb=>cb.value);
+}
+function setRespValues(containerId, arr){
+  arr = arr||[];
+  document.querySelectorAll("#"+containerId+" input[type=checkbox]").forEach(cb=>{
+    cb.checked = arr.includes(cb.value);
+    cb.closest("label").classList.toggle("checked-"+cb.value, cb.checked);
+  });
+}
+const PESSOA_LABEL = {mahilton:"Mahilton", wellington:"Wellington"};
+function tagsRespHtml(arr){
+  if(!arr || !arr.length) return "";
+  return `<div class="tag-row">${arr.map(p=> `<span class="tag-resp ${p}"><span class="dot"></span>${PESSOA_LABEL[p]||p}</span>`).join("")}</div>`;
+}
+
+function populateClienteSelect(selectedId){
+  const sel = document.getElementById("ev-cliente");
+  const ordered = [...leads].sort((a,b)=> a.razao.localeCompare(b.razao));
+  sel.innerHTML = ordered.map(l=> `<option value="${l.id}">${escapeHtml(l.razao)} — ${escapeHtml(l.cidade)}/${l.estado}</option>`).join("");
+  if(selectedId) sel.value = selectedId;
+}
+
+function onEventoTipoChange(){
+  const tipo = document.getElementById("ev-tipo").value;
+  const isReuniao = tipo==="reuniao";
+  document.getElementById("ev-cliente-field").style.display = isReuniao? "flex":"none";
+  document.getElementById("ev-resp-prospect-field").style.display = isReuniao? "flex":"none";
+  document.getElementById("ev-resp-reuniao-label").textContent = isReuniao? "Responsável pela reunião" : "Responsável pelo bloqueio";
+  document.getElementById("ev-briefing-field").style.display = isReuniao? "flex":"none";
+  document.getElementById("ev-local-field").style.display = isReuniao? "flex":"none";
+  document.getElementById("ev-local-detalhe-field").style.display = isReuniao? "flex":"none";
+  document.getElementById("ev-vincular-field").style.display = isReuniao? "flex":"none";
+  document.getElementById("ev-motivo-field").style.display = isReuniao? "none":"flex";
+  updateEventoHint();
+}
+
+// Dicas inteligentes: conflito de horário + cliente com retorno atrasado
+function updateEventoHint(){
+  const hintBox = document.getElementById("ev-hint");
+  const tipo = document.getElementById("ev-tipo").value;
+  const data = document.getElementById("ev-data").value;
+  const hi = document.getElementById("ev-hora-ini").value;
+  const hf = document.getElementById("ev-hora-fim").value;
+  let msgs = [];
+
+  if(data && hi){
+    const respAtual = getRespValues("ev-resp-reuniao");
+    const conflitos = agenda.filter(e=>{
+      if(e.id===editingEventoId) return false;
+      if(e.data!==data) return false;
+      if(!e.horaInicio) return false;
+      const evFim = e.horaFim || e.horaInicio;
+      const novoFim = hf || hi;
+      const sobrepoe = (hi < evFim) && (evFim ? novoFim > e.horaInicio : true);
+      if(!sobrepoe) return false;
+      // só é conflito de verdade se envolver a MESMA pessoa responsável (ou se nenhum dos dois tem responsável definido)
+      const respEvento = e.respReuniao||[];
+      if(!respAtual.length || !respEvento.length) return true;
+      return respAtual.some(p=> respEvento.includes(p));
+    });
+    if(conflitos.length){
+      const pessoasConflito = [...new Set(conflitos.flatMap(c=>c.respReuniao||[]))].map(p=>PESSOA_LABEL[p]).filter(Boolean);
+      msgs.push({tipo:"bad", txt:`⚠️ Conflito de horário${pessoasConflito.length?` — ${pessoasConflito.join(" e ")} já ${pessoasConflito.length>1?"têm":"tem"} outro compromisso`:""} nesse dia (${conflitos.map(c=>c.horaInicio).join(", ")}).`});
+    }
+  }
+
+  if(tipo==="reuniao"){
+    const leadId = document.getElementById("ev-cliente").value;
+    const lead = leads.find(l=>l.id===leadId);
+    if(lead){
+      const np = nextPending(lead);
+      if(np && pendClass(np)==="overdue"){
+        msgs.push({tipo:"warn", txt:`🔶 Este cliente está com um retorno atrasado desde ${fmtDate(np)} — vale confirmar por telefone antes da reunião.`});
+      }
+      if(lead.status==="sem-interesse"){
+        msgs.push({tipo:"warn", txt:`🔶 Este cliente está marcado como "Sem interesse" — confirme se a reunião ainda faz sentido.`});
+      }
+    }
+    // dica cruzada com logística: outras reuniões no mesmo dia em cidades diferentes
+    if(data){
+      const outrasNoDia = agenda.filter(e=> e.data===data && e.tipo==="reuniao" && e.id!==editingEventoId && e.leadId);
+      if(outrasNoDia.length){
+        const cidades = new Set(outrasNoDia.map(e=>{ const l=leads.find(x=>x.id===e.leadId); return l? l.cidade+"/"+l.estado : null; }).filter(Boolean));
+        if(cidades.size){
+          msgs.push({tipo:"info", txt:`💡 Já existe(m) outra(s) reunião(ões) nesse dia (${[...cidades].join(", ")}). Vale planejar a rota entre elas na aba Logística.`});
+        }
+      }
+    }
+  }
+
+  if(!msgs.length){ hintBox.style.display="none"; return; }
+  const cores = {bad:["#F6E3E0","#B94A3E"], warn:["#FBEBD3","#8A5A16"], info:["#E4EFEC","#0A3838"]};
+  hintBox.style.display = "block";
+  hintBox.innerHTML = msgs.map(m=>{
+    const [bg,fg] = cores[m.tipo];
+    return `<div style="background:${bg};color:${fg};padding:8px 10px;border-radius:7px;margin-bottom:6px;">${m.txt}</div>`;
+  }).join("");
+}
+
+function openNewEvento(dataPreset){
+  editingEventoId = null;
+  document.getElementById("evento-modal-title").textContent = "Novo evento";
+  document.getElementById("ev-tipo").value = "reuniao";
+  populateClienteSelect(null);
+  setRespValues("ev-resp-prospect", []);
+  setRespValues("ev-resp-reuniao", []);
+  document.getElementById("ev-data").value = dataPreset || todayISO();
+  document.getElementById("ev-hora-ini").value = "09:00";
+  document.getElementById("ev-hora-fim").value = "10:00";
+  document.getElementById("ev-formato").value = "presencial";
+  document.getElementById("ev-local-detalhe").value = "";
+  document.getElementById("ev-briefing").value = "";
+  document.getElementById("ev-motivo").value = "";
+  document.getElementById("ev-vincular-retorno").checked = false;
+  document.getElementById("btn-delete-evento").style.display = "none";
+  onEventoTipoChange();
+  document.getElementById("evento-overlay").classList.add("open");
+}
+function openEditEvento(id){
+  const e = agenda.find(x=>x.id===id);
+  if(!e) return;
+  editingEventoId = id;
+  document.getElementById("evento-modal-title").textContent = "Editar evento";
+  document.getElementById("ev-tipo").value = e.tipo;
+  populateClienteSelect(e.leadId);
+  setRespValues("ev-resp-prospect", e.respProspect);
+  setRespValues("ev-resp-reuniao", e.respReuniao);
+  document.getElementById("ev-data").value = e.data;
+  document.getElementById("ev-hora-ini").value = e.horaInicio||"";
+  document.getElementById("ev-hora-fim").value = e.horaFim||"";
+  document.getElementById("ev-formato").value = e.formato||"presencial";
+  document.getElementById("ev-local-detalhe").value = e.localDetalhe||"";
+  document.getElementById("ev-briefing").value = e.briefing||"";
+  document.getElementById("ev-motivo").value = e.motivo||"";
+  document.getElementById("ev-vincular-retorno").checked = false;
+  document.getElementById("btn-delete-evento").style.display = "inline-flex";
+  onEventoTipoChange();
+  document.getElementById("evento-overlay").classList.add("open");
+}
+function closeEventoModal(){ document.getElementById("evento-overlay").classList.remove("open"); }
+
+function saveEvento(){
+  const tipo = document.getElementById("ev-tipo").value;
+  const data = document.getElementById("ev-data").value;
+  if(!data){ toast("Informe a data do evento."); return; }
+  const horaInicio = document.getElementById("ev-hora-ini").value;
+  const horaFim = document.getElementById("ev-hora-fim").value;
+
+  let payload = {tipo, data, horaInicio, horaFim};
+  payload.respReuniao = getRespValues("ev-resp-reuniao");
+
+  if(tipo==="reuniao"){
+    const leadId = document.getElementById("ev-cliente").value;
+    const lead = leads.find(l=>l.id===leadId);
+    if(!lead){ toast("Selecione um cliente para a reunião."); return; }
+    payload.leadId = leadId;
+    payload.titulo = lead.razao;
+    payload.respProspect = getRespValues("ev-resp-prospect");
+    payload.formato = document.getElementById("ev-formato").value;
+    payload.localDetalhe = document.getElementById("ev-local-detalhe").value.trim();
+    payload.briefing = document.getElementById("ev-briefing").value.trim();
+
+    if(document.getElementById("ev-vincular-retorno").checked){
+      lead.historico = lead.historico || [];
+      lead.historico.push({data: todayISO(), nota: `Reunião agendada para ${fmtDate(data)}${horaInicio?" às "+horaInicio:""}.`, next: data});
+      saveLeads();
+    }
+  }else{
+    const motivo = document.getElementById("ev-motivo").value.trim();
+    payload.titulo = motivo || "Indisponível";
+    payload.motivo = motivo;
+  }
+
+  if(editingEventoId){
+    const idx = agenda.findIndex(x=>x.id===editingEventoId);
+    agenda[idx] = {...agenda[idx], ...payload};
+  }else{
+    agenda.push({id: crypto.randomUUID(), ...payload});
+  }
+  saveAgenda();
+  closeEventoModal();
+  renderAgenda();
+  renderAll();
+  toast("Evento salvo na agenda.");
+}
+function deleteEvento(){
+  if(!editingEventoId) return;
+  if(!confirm("Excluir este evento da agenda?")) return;
+  agenda = agenda.filter(x=>x.id!==editingEventoId);
+  saveAgenda();
+  closeEventoModal();
+  renderAgenda();
+  toast("Evento excluído.");
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+function renderAll(){
+  renderDash();
+  renderPendFull();
+  renderLista();
+  document.getElementById("cnt-agenda").textContent = agenda.filter(e=> e.data>=todayISO()).length;
+}
+renderAll();
+setupRespCheckboxes();
+</script>
+</body>
+</html>
